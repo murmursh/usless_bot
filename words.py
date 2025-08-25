@@ -127,10 +127,10 @@ def find_words_by_indx(indx, letters):
     return d    
 
 def get_words_data(letters):
-    index = load_dictionary_cached("nouns.txt")
-    d = find_words_by_indx(index, letters)
-    if d:
-        return d
+    # index = load_dictionary_cached("nouns.txt")
+    # d = find_words_by_indx(index, letters)
+    # if d:
+    #     return d
     index = load_dictionary_cached("russian_words50.txt")
     d = find_words_by_indx(index, letters)
     return d
