@@ -1,0 +1,4 @@
+*.png
+.w
+.wheel_solver_cache/*
+__pycache__/*
