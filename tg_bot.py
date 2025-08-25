@@ -71,7 +71,7 @@ def format_words_output(words_data: dict) -> str:
         response_text += f"**{size}):** {words_preview}\n"
     return response_text
 
-def format_solution_output(solution: list, custom_letters: bool = False) -> str:
+def format_solution_output(solution: list, weights: dict, custom_letters: bool = False) -> str:
     """Formats the crossword solution for display."""
     title = "✨ Solution (with your letters) ✨" if custom_letters else "✨ Crossword Solution ✨"
     res = dict()
@@ -81,7 +81,7 @@ def format_solution_output(solution: list, custom_letters: bool = False) -> str:
             if idx not in res:
                 res[idx] = []
             res[idx].append(word)
-    solution_lines = [', '.join(list(set(words))) for ind, words in res.items()]
+    solution_lines = [', '.join(list(set(sorted(words, key=lambda w: weights[w])))) for ind, words in res.items()]
     return f"{title}\n\n" + "\n".join(solution_lines)
 
 
@@ -178,6 +178,13 @@ async def grid_confirmation_callback(update: Update, context: ContextTypes.DEFAU
     return LETTERS_CONFIRMATION
 
 
+def weights_from_words(words):
+    trop = {}
+    for _, W in enumerate(words.items()):
+        for weight, w in reversed(W):
+            trop[w] = weight
+    return trop
+
 async def letters_confirmation_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles confirmation of letters and provides final output."""
     query = update.callback_query
@@ -196,7 +203,7 @@ async def letters_confirmation_callback(update: Update, context: ContextTypes.DE
             solution = solve_crossword_all(matrix, words)
             
             if solution:  # If solution was found
-                final_text = format_solution_output(solution)
+                final_text = format_solution_output(solution, weights=weights_from_words(words))
                 
                 # Add button to show words as fallback
                 keyboard = [
@@ -255,7 +262,7 @@ async def receive_corrected_letters(update: Update, context: ContextTypes.DEFAUL
         solution = solve_crossword_all(matrix, words)
         
         if solution:  # If solution was found
-            final_text = format_solution_output(solution, custom_letters=True)
+            final_text = format_solution_output(solution, weights=weights_from_words(words), custom_letters=True)
             
             # Add button to show words as fallback
             keyboard = [
