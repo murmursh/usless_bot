@@ -79,7 +79,7 @@ def load_dictionary_cached(path: str) -> dict[int, list[tuple[str, list[int], in
                         break
                     counts[idx] += 1
                 else:
-                    index[length].append((word, counts, rank))
+                    index[length].append((word.lower(), counts, rank))
     except OSError as e:
         print(f"Ошибка чтения словаря '{path}': {e}", file=sys.stderr)
         sys.exit(1)
@@ -118,13 +118,21 @@ def find_words(
     # Слова уже в порядке популярности (как они встречаются в словаре)
     return result
 
-def get_words_data(letters):
-    index = load_dictionary_cached("nouns.txt")
+def find_words_by_indx(indx, letters):
     d = {}
     for L in range(len(letters)+1):
-        matches = find_words(index, letters, L)
+        matches = find_words(indx, letters, L)
         if matches:
             d[L] = [w[0] for w in sorted(matches, key=lambda x: x[1])]
+    return d    
+
+def get_words_data(letters):
+    index = load_dictionary_cached("nouns.txt")
+    d = find_words_by_indx(index, letters)
+    if d:
+        return d
+    index = load_dictionary_cached("russian_words50.txt")
+    d = find_words_by_indx(index, letters)
     return d
 
 # --------------------------------------------------------------------

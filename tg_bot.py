@@ -174,7 +174,6 @@ async def grid_confirmation_callback(update: Update, context: ContextTypes.DEFAU
     )
     return LETTERS_CONFIRMATION
 
-
 async def letters_confirmation_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles confirmation of letters and provides final output."""
     query = update.callback_query
@@ -191,7 +190,29 @@ async def letters_confirmation_callback(update: Update, context: ContextTypes.DE
         if is_grid_correct:
             matrix = context.user_data["matrix"]
             solution = solve_crossword_all(matrix, words)
-            final_text = format_solution_output(solution)
+            
+            if solution:  # If solution was found
+                final_text = format_solution_output(solution)
+                
+                # Add button to show words as fallback
+                keyboard = [
+                    [InlineKeyboardButton("🔤 Show possible words instead", callback_data="show_words_fallback")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await context.bot.edit_message_caption(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    caption=final_text,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown",
+                )
+                # Store words data for potential fallback
+                context.user_data["words_data"] = words
+                return ConversationHandler.END
+            else:  # Fallback: couldn't find solution, show words instead
+                final_text = format_words_output(words)
+                final_text = "❌ Couldn't find a complete solution for the grid. Here are possible words:\n\n" + final_text
         else:
             final_text = format_words_output(words)
 
@@ -228,7 +249,29 @@ async def receive_corrected_letters(update: Update, context: ContextTypes.DEFAUL
     if is_grid_correct:
         matrix = context.user_data["matrix"]
         solution = solve_crossword_all(matrix, words)
-        final_text = format_solution_output(solution, custom_letters=True)
+        
+        if solution:  # If solution was found
+            final_text = format_solution_output(solution, custom_letters=True)
+            
+            # Add button to show words as fallback
+            keyboard = [
+                [InlineKeyboardButton("🔤 Show possible words instead", callback_data="show_words_fallback")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await context.bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=message_id,
+                caption=final_text,
+                reply_markup=reply_markup,
+                parse_mode="Markdown",
+            )
+            # Store words data for potential fallback
+            context.user_data["words_data"] = words
+            return ConversationHandler.END
+        else:  # Fallback: couldn't find solution, show words instead
+            final_text = format_words_output(words)
+            final_text = "❌ Couldn't find a complete solution for the grid. Here are possible words:\n\n" + final_text
     else:
         final_text = format_words_output(words)
 
@@ -242,11 +285,29 @@ async def receive_corrected_letters(update: Update, context: ContextTypes.DEFAUL
     return ConversationHandler.END
 
 
-# --- Main Bot Execution ---
+async def fallback_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles the fallback request to show words instead of solution."""
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "show_words_fallback":
+        words_data = context.user_data.get("words_data")
+        if words_data:
+            final_text = format_words_output(words_data)
+            final_text = "🔤 Here are all possible words:\n\n" + final_text
+            
+            await context.bot.edit_message_caption(
+                chat_id=query.message.chat_id,
+                message_id=query.message.message_id,
+                caption=final_text,
+                parse_mode="Markdown",
+            )
+        cleanup_temp_file(context)
+    
+    return ConversationHandler.END
+
 def main() -> None:
     """Run the bot."""
-    # It's better to use python-dotenv for security
-    # 
     token = os.getenv("TELEGRAM_TOKEN")
     
     application = Application.builder().token(token).build()
@@ -277,6 +338,8 @@ def main() -> None:
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
+    # Add the fallback callback handler separately (not part of conversation states)
+    application.add_handler(CallbackQueryHandler(fallback_callback, pattern="^show_words_fallback$"))
     application.add_handler(conv_handler)
 
     print("Bot is running...")
