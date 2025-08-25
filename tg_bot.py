@@ -181,7 +181,7 @@ async def grid_confirmation_callback(update: Update, context: ContextTypes.DEFAU
 def weights_from_words(words):
     trop = {}
     for _, W in enumerate(words.items()):
-        for weight, w in reversed(W):
+        for weight, w in enumerate(W):
             trop[w] = weight
     return trop
 
