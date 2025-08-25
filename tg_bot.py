@@ -104,6 +104,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # --- Conversation Steps ---
 async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles the user's image, extracts grid, and asks for confirmation."""
+    # Clean up any existing conversation first
+    await cleanup_conversation(context)
+    
     photo_file = await update.message.photo[-1].get_file()
 
     context.user_data["user"] = update.effective_user
@@ -173,6 +176,7 @@ async def grid_confirmation_callback(update: Update, context: ContextTypes.DEFAU
         parse_mode="Markdown",
     )
     return LETTERS_CONFIRMATION
+
 
 async def letters_confirmation_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles confirmation of letters and provides final output."""
@@ -306,11 +310,37 @@ async def fallback_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     
     return ConversationHandler.END
 
+async def cleanup_conversation(context: ContextTypes.DEFAULT_TYPE):
+    """Clean up any ongoing conversation."""
+    cleanup_temp_file(context)
+    # Clear conversation data
+    keys_to_remove = ['user', 'screenshot_path', 'matrix', 'message_id', 'letters', 
+                     'is_crossword_extracted_correct', 'words_data']
+    for key in keys_to_remove:
+        if key in context.user_data:
+            del context.user_data[key]
+    # Also clear any conversation timeout if exists
+    if 'conversation_timeout' in context.user_data:
+        if context.user_data['conversation_timeout']:
+            context.user_data['conversation_timeout'].cancel()
+        del context.user_data['conversation_timeout']
+
+async def new_image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles new image input during any conversation state, restarting the process."""
+    # Clean up existing conversation
+    await cleanup_conversation(context)
+    
+    # Process the new image
+    return await image_handler(update, context)
+
 def main() -> None:
     """Run the bot."""
     token = os.getenv("TELEGRAM_TOKEN")
     
     application = Application.builder().token(token).build()
+
+    # Handler for new images that can interrupt any conversation
+    new_image_handler_obj = MessageHandler(filters.PHOTO & ~filters.COMMAND, new_image_handler)
 
     conv_handler = ConversationHandler(
         entry_points=[
@@ -318,21 +348,18 @@ def main() -> None:
             MessageHandler(filters.PHOTO & ~filters.COMMAND, image_handler),
         ],
         states={
-            AWAITING_IMAGE: [
-                MessageHandler(filters.PHOTO & ~filters.COMMAND, image_handler)
-            ],
+            AWAITING_IMAGE: [new_image_handler_obj],
             GRID_CONFIRMATION: [
-                CallbackQueryHandler(grid_confirmation_callback, pattern="^grid_.*$")
+                CallbackQueryHandler(grid_confirmation_callback, pattern="^grid_.*$"),
+                new_image_handler_obj
             ],
             LETTERS_CONFIRMATION: [
-                CallbackQueryHandler(
-                    letters_confirmation_callback, pattern="^letters_.*$"
-                )
+                CallbackQueryHandler(letters_confirmation_callback, pattern="^letters_.*$"),
+                new_image_handler_obj
             ],
             AWAITING_CORRECTED_LETTERS: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND, receive_corrected_letters
-                )
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_corrected_letters),
+                new_image_handler_obj
             ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
