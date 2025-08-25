@@ -81,7 +81,7 @@ def format_solution_output(solution: list, weights: dict, custom_letters: bool =
             if idx not in res:
                 res[idx] = []
             res[idx].append(word)
-    solution_lines = [', '.join(list(set(sorted(words, key=lambda w: weights[w])))) for ind, words in res.items()]
+    solution_lines = [', '.join(sorted(list(set(words)), key=lambda w: weights[w])) for ind, words in res.items()]
     return f"{title}\n\n" + "\n".join(solution_lines)
 
 
