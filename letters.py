@@ -1,7 +1,6 @@
 import re
 import cv2
 import os
-import easyocr
 import numpy as np
 import pytesseract
 import tempfile
@@ -43,21 +42,21 @@ def ocr_tesseract_optimized(image):
     return best_text.strip().upper()
 
 
-def ocr_easyocr(image):
-    """Use EasyOCR for Cyrillic text recognition"""
-    reader = easyocr.Reader(['ru'], gpu=False)  # Set gpu=True if you have CUDA
-    # Initialize reader with Russian language
+# def ocr_easyocr(image):
+#     """Use EasyOCR for Cyrillic text recognition"""
+#     reader = easyocr.Reader(['ru'], gpu=False)  # Set gpu=True if you have CUDA
+#     # Initialize reader with Russian language
     
-    # EasyOCR works better with BGR images
-    if len(image.shape) == 2:
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+#     # EasyOCR works better with BGR images
+#     if len(image.shape) == 2:
+#         image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
     
-    # Perform OCR
-    results = reader.readtext(image, detail=0)
+#     # Perform OCR
+#     results = reader.readtext(image, detail=0)
     
-    # Combine all detected text
-    text = ' '.join(results)
-    return text.upper()
+#     # Combine all detected text
+#     text = ' '.join(results)
+#     return text.upper()
 
 def extract_cyrillic_letters(image_path):
     # Load image

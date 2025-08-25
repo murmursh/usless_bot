@@ -1,0 +1,4 @@
+pillow
+python-telegram-bot
+opencv-python
+pytesseract
